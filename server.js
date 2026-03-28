@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB connection
-mongoose.connect("mongodb+srv://vamsi:SRhHIJk1W0Xh3yAi@budget.nj2jmwo.mongodb.net/healthsync")
+mongoose.connect("mongodb+srv://vamsi:MONGO_URI@budget.nj2jmwo.mongodb.net/healthsync")
 .then(() => console.log("✅ MongoDB Atlas Connected"))
 .catch(err => console.log(err));
 
