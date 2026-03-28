@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const User = require("./User");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const app = express();
 
 app.use(cors());
@@ -32,7 +33,14 @@ app.post("/register", async (req, res) => {
   const { name, email, password, role } = req.body;
 
   try {
-    const user = new User({ name, email, password, role });
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+const user = new User({
+  name,
+  email,
+  password: hashedPassword,
+  role
+});
     await user.save();
 
     console.log("✅ Saved to DB"); // 👈 MUST ADD
@@ -49,15 +57,20 @@ app.post("/login", async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
+if (!user) {
+  return res.status(401).json({ message: "Invalid credentials" });
+}
 
-    if (!user || user.password !== password) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+const isMatch = await bcrypt.compare(password, user.password);
+
+if (!isMatch) {
+  return res.status(401).json({ message: "Invalid credentials" });
+}
 
     // ✅ CREATE JWT TOKEN
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      "SECRET_KEY",
+      process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
@@ -78,7 +91,7 @@ function verifyToken(req, res, next) {
 
   const token = bearer.split(" ")[1];
 
-  jwt.verify(token, "SECRET_KEY", (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) return res.status(401).send("Invalid token");
 
     req.user = decoded;
