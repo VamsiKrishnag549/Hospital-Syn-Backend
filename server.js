@@ -3,6 +3,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const User = require("./User");
+const jwt = require("jsonwebtoken");
 const app = express();
 
 app.use(cors());
@@ -45,14 +46,43 @@ app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email, password });
+    const user = await User.findOne({ email });
 
-    if (user) {
-      res.json(user);
-    } else {
-      res.status(401).json("Invalid credentials");
+    if (!user || user.password !== password) {
+      return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    // ✅ CREATE JWT TOKEN
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      "SECRET_KEY",
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      token,
+      user
+    });
+
   } catch (err) {
     res.status(500).json("Server error");
   }
+});
+
+function verifyToken(req, res, next) {
+  const bearer = req.headers["authorization"];
+
+  if (!bearer) return res.status(403).send("No token");
+
+  const token = bearer.split(" ")[1];
+
+  jwt.verify(token, "SECRET_KEY", (err, decoded) => {
+    if (err) return res.status(401).send("Invalid token");
+
+    req.user = decoded;
+    next();
+  });
+}
+app.get("/profile", verifyToken, (req, res) => {
+  res.json({ message: "Protected route", user: req.user });
 });
